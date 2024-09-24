@@ -7,12 +7,13 @@
 </head>
 <body>
     <div id="container"></div>
-    <script src="js/three.min.js"></script>
+
     <script id="vertexShader" type="x-shader/x-vertex">
         void main() {
             gl_Position = vec4( position, 1.0 );
         }
     </script>
+
     <script id="fragmentShader" type="x-shader/x-fragment">
         uniform vec2 u_resolution;
         uniform float u_time;
@@ -22,10 +23,13 @@
             gl_FragColor=vec4(st.x,st.y,0.0,1.0);
         }
     </script>
-    <script>
-        var container;
-        var camera, scene, renderer, clock;
-        var uniforms;
+
+    <script type="module">
+        import * as THREE from './js/three/build/three.module.js';
+
+        let container;
+        let camera, scene, renderer, clock;
+        let uniforms;
 
         init();
         animate();
@@ -39,7 +43,7 @@
             scene = new THREE.Scene();
             clock = new THREE.Clock();
 
-            var geometry = new THREE.PlaneBufferGeometry( 2, 2 );
+            const geometry = new THREE.PlaneGeometry( 2, 2 );
 
             uniforms = {
                 u_time: { type: "f", value: 1.0 },
@@ -47,13 +51,13 @@
                 u_mouse: { type: "v2", value: new THREE.Vector2() }
             };
 
-            var material = new THREE.ShaderMaterial( {
+            const material = new THREE.ShaderMaterial( {
                 uniforms: uniforms,
                 vertexShader: document.getElementById( 'vertexShader' ).textContent,
                 fragmentShader: document.getElementById( 'fragmentShader' ).textContent
             } );
 
-            var mesh = new THREE.Mesh( geometry, material );
+            const mesh = new THREE.Mesh( geometry, material );
             scene.add( mesh );
 
             renderer = new THREE.WebGLRenderer();
