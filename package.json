@@ -1,10 +1,8 @@
 {
   "name": "phlote-viz",
-  "version": ".0.1",
+  "version": "0.0.1",
   "description": "Raymarched SDF using WebGL",
-  "scripts": {},
-  "license": "MIT",
-  "dependencies": {
-    "three": "^0.168.0"
-  }
-}
+  "scripts": {
+    "start": "http-server ."
+  },
+  "license": "MIT"}

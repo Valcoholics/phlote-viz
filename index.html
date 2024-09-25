@@ -1,94 +1,227 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Raymarched SDF using ThreeJS WebGL</title>
+  <meta charset="UTF-8">
+  <title>Raymarching SDF</title>
+  <style>
+    body { margin: 0; }
+    canvas { width: 100%; height: 100% }
+  </style>
 </head>
 <body>
-    <div id="container"></div>
+  <div id="container"></div>
 
-    <script id="vertexShader" type="x-shader/x-vertex">
-        void main() {
-            gl_Position = vec4( position, 1.0 );
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    let container, camera, scene, renderer, clock, uniforms;
+
+    init();
+    animate();
+
+    function init() {
+      container = document.getElementById('container');
+
+      // Camera setup
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.z = 5;
+
+      // Scene setup
+      scene = new THREE.Scene();
+      clock = new THREE.Clock();
+
+      // Plane geometry for fullscreen shader effect
+      const geometry = new THREE.PlaneGeometry(2, 2);
+
+      // Uniforms for the shader
+      uniforms = {
+        u_time: { type: "f", value: 1.0 },
+        u_resolution: { type: "v2", value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+      };
+
+      // Shader material (vertex + fragment shader)
+      const material = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        vertexShader: `
+          varying vec2 vUv;
+          void main() {
+            vUv = uv;
+            gl_Position = vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          precision highp float;
+          varying vec2 vUv;
+          uniform float lensLength;
+          uniform float time;
+
+        // Pallete function by Inigo Quilez - iquilezles.org
+        // a - brigthness, b - contrast, c - osc, d - phase
+          vec3 palette(in vec3 t, in vec3 a, in vec3 b, in vec3 c, in vec3 d) { return a + b*cos( 6.28318*(c*t+d) );
+
+        // Got rotation functions from akella - twitter.com/akella
+        mat4 rotationMatrix(vec3 axis, float angle) {
+          axis = normalize(axis);
+          float s = sin(angle);
+          float c = cos(angle);
+          float oc = 1.0 - c;
+          
+          return mat4(oc * axis.x * axis.x + c, 
+				      oc * axis.x * axis.y - axis.z * s,  oc * axis.z * axis.x + axis.y * s,  0.0,
+                      oc * axis.x * axis.y + axis.z * s,  oc * axis.y * axis.y + c,           
+                      oc * axis.y * axis.z - axis.x * s,  0.0,
+                      oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c,           
+                      0.0,
+                      0.0,                                
+                      0.0,                                
+                      0.0,                                
+                      1.0);
+                      }
+
+        vec3 rotate(vec3 v, vec3 axis, float angle) {
+	        mat4 m = rotationMatrix(axis, angle);
+	        return (m * vec4(v, 1.0)).xyz;
         }
-    </script>
 
-    <script id="fragmentShader" type="x-shader/x-fragment">
-        uniform vec2 u_resolution;
-        uniform float u_time;
-
-        void main() {
-            vec2 st = gl_FragCoord.xy/u_resolution.xy;
-            gl_FragColor=vec4(st.x,st.y,0.0,1.0);
+        // Torus function by Inigo Quilez - iquilezles.org
+        // p - position, t - size
+        float sdTorus(vec3 p, vec2 t) {
+          vec2 q = vec2(length(p.xz)-t.x,p.y);
+          return length(q)-t.y;
         }
-    </script>
 
-    <script type="module">
-        import * as THREE from './js/three/build/three.module.js';
+        float scene(vec3 pos) {
+	        vec3 rotation = rotate(vec3(pos.x, pos.y, pos.z+1.5), vec3(1.), u_time*2.);	
+	
+            vec3 wPos = rotation; // warp position
+            const float warpScale = 1.;
 
-        let container;
-        let camera, scene, renderer, clock;
-        let uniforms;
+            vec2 size = vec2(2.0);
+	
+            // wPos.xy = mod(wPos.xy + size*0.5, size) - size*0.5; // multiple shapes
+	
+            // Cosine domain warp
+            wPos += warpScale * 0.10000 * cos( 3. * wPos.yzx + u_time);
+            wPos += warpScale * 0.05000 * cos(11. * wPos.yzx + u_time);
+            wPos += warpScale * 0.02500 * cos(17. * wPos.yzx + u_time);
+	
+            rotation = wPos;
+	
+            rotation = rotation.xzy;
+	
+            float r = 0.5;	
+            float torus = sdTorus(rotation, vec2(r, r*0.6));
 
-        init();
-        animate();
-
-        function init() {
-            container = document.getElementById( 'container' );
-
-            camera = new THREE.Camera();
-            camera.position.z = 1;
-
-            scene = new THREE.Scene();
-            clock = new THREE.Clock();
-
-            const geometry = new THREE.PlaneGeometry( 2, 2 );
-
-            uniforms = {
-                u_time: { type: "f", value: 1.0 },
-                u_resolution: { type: "v2", value: new THREE.Vector2() },
-                u_mouse: { type: "v2", value: new THREE.Vector2() }
-            };
-
-            const material = new THREE.ShaderMaterial( {
-                uniforms: uniforms,
-                vertexShader: document.getElementById( 'vertexShader' ).textContent,
-                fragmentShader: document.getElementById( 'fragmentShader' ).textContent
-            } );
-
-            const mesh = new THREE.Mesh( geometry, material );
-            scene.add( mesh );
-
-            renderer = new THREE.WebGLRenderer();
-            renderer.setPixelRatio( window.devicePixelRatio );
-
-            container.appendChild( renderer.domElement );
-
-            onWindowResize();
-            window.addEventListener( 'resize', onWindowResize, false );
-
-            document.onmousemove = function(e){
-              uniforms.u_mouse.value.x = e.pageX
-              uniforms.u_mouse.value.y = e.pageY
+            return 0.4 * torus;
             }
-        }
+            
+        const int RAYMARCH_MAX_STEPS = 200;
+        const float RAYMARCH_MAX_DIST = 10.;
+        const float EPSILON = 0.0001;
 
-        function onWindowResize( event ) {
-            renderer.setSize( window.innerWidth, window.innerHeight );
-            uniforms.u_resolution.value.x = renderer.domElement.width;
-            uniforms.u_resolution.value.y = renderer.domElement.height;
-        }
+        // hoisting for raymarch fn return val	
+        vec4 shade (vec3 pos, vec3 rayDir, float rayDepth);
+	
+        vec4 raymarch(vec3 rayDir, vec3 pos) {
+	        // Define the start state
+	        // reset to 0 steps
+	        float currentDist = 0.0; 
+	        float rayDepth = 0.0;
+	        vec3 rayLength = vec3(0.0);
+	
+	        // shooting the ray
+	        for (int i=0; i < RAYMARCH_MAX_STEPS; i++) {
+     	        // steps traveled
+		        currentDist = scene(pos + rayDir * rayDepth);
+		        rayDepth += currentDist;
+		
+ 	            if (currentDist < EPSILON) return shade(pos + rayDir * rayDepth, rayDir, rayDepth); // We're inside the scene - magic happens here
+ 		        if (rayDepth > RAYMARCH_MAX_DIST) return vec4(0, 0, 0, 1.); // We've gone too far
+            }
+                return vec4(0, 0, 0, 1.);
+            }
 
-        function animate() {
-            requestAnimationFrame( animate );
-            render();
-        }
+            vec3 getNormal (in vec3 pos, in float depth) {
+                const vec2 epsilon = vec2(0.0001, 0.);
+                vec3 nor = vec3(
+                    scene(pos + epsilon.rgg) - scene(pos - epsilon.rgg), // x
+                    scene(pos + epsilon.grg) - scene(pos - epsilon.grg), // y
+                    scene(pos + epsilon.ggr) - scene(pos - epsilon.ggr) // z
+                );
+                return normalize(nor);
+                }
 
-        function render() {
-            uniforms.u_time.value += clock.getDelta();
-            renderer.render( scene, camera );
-        }
-    </script>
+            float diffuse (in vec3 light, in vec3 nor) {
+	            return clamp(0., 1., dot(nor, light));
+            }
+
+            vec3 baseColor (in vec3 pos, in vec3 nor, in vec3 rayDir, in float rayDepth) {
+	            vec3 color = vec3(0);
+	
+	            float dNR = dot(nor, -rayDir);
+	
+	            color = palette(vec3(dNR), vec3(0.5), vec3(0.5), vec3(1), vec3(0, 0.33, 0.67));
+	            return color;
+            }
+            
+            vec4 shade (vec3 pos, vec3 rayDir, float rayDepth) {
+                vec3 nor = getNormal(pos, rayDepth);
+                
+                nor += 0.1 * sin(13. * nor + u_time);
+                nor = normalize(nor);
+                
+                vec3 color = palette(
+                    nor,
+                    vec3(0.65, 0.95, 0.85), // brightness
+                    vec3(rayDepth) * 2., // contrast
+                    vec3(1), // osc
+                    vec3(0., 0.33, 0.67) // phase
+                );
+	
+            vec3 lightPos = rotate(vec3(1.), vec3(0, 1, 0), 3.14 * u_time);
+	
+	        float dif = diffuse(lightPos, nor);
+	        color = dif * baseColor(pos, nor, rayDir, rayDepth);
+            vec4 shapeColor = vec4(color, 1.0);
+                
+            return shapeColor;
+            }
+
+            void main() {
+                vec2 uv = (gl_FragCoord.xy - u_resolution * .5) / u_resolution.yy; 
+                vec3 camPos = vec3(0.0, 0.0, 5.0); // x, y, z axis	
+                vec3 rayDir = normalize(vec3(uv, -1.0)); // DOF
+                gl_FragColor = vec4(raymarch(rayDir, camPos));
+            }`
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
+
+    // Renderer setup
+    renderer = new THREE.WebGLRenderer();
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    container.appendChild(renderer.domElement);
+
+    // Handle window resize
+    window.addEventListener('resize', onWindowResize, false);
+    }
+
+    function onWindowResize() {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      uniforms.u_resolution.value.x = window.innerWidth;
+      uniforms.u_resolution.value.y = window.innerHeight;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      render();
+    }
+
+    function render() {
+      uniforms.u_time.value += clock.getDelta(); // Increment time
+      renderer.render(scene, camera);
+    }
+  </script>
 </body>
 </html>
