@@ -11,3 +11,5 @@
 9/28/24: stressed on meeting the flyer deadline. I saw a new venue with a bigger projector screen and heard some of the artists perform. looked at the lights and just understood things. 
 
 9/29/24: decompressed and sent out reply emails for Monday. ordering some of the last materials this week
+
+9/30/24: I got the control of the colors on the 3d asset with code, have not tried applying raymarching yet, sent emails out to folks. posted progress...I think fixing the camera, mouse control, and animation would help me tomorrow along with sitting through the raymarching addition
