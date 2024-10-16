@@ -17,4 +17,6 @@
 10/2/24: I worked on the flyer and then just reached out to a designer 
 
 10/7/24: flyer is up, being circulated...set list is almost done. 4:30pm clocking into code
-
+——
+10/16/24: the first meetup is over,  I did not show this visualization there, I will reflect on how to finish this and showcase in the next meetup. I setup hydra and shuffled a few open source loops of code but you can add gifs in hydra
+penny needs a logo and the photos back also sync with ____. 
